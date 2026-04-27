@@ -1,6 +1,6 @@
 """
 Embedder using sentence-transformers for generating embeddings.
-Uses the all-MiniLM-L6-v2 model.
+Uses the paraphrase-MiniLM-L3-v2 model.
 """
 
 import os
@@ -14,7 +14,7 @@ from sentence_transformers import SentenceTransformer
 class Embedder:
     """Generate embeddings for text using sentence-transformers."""
     
-    MODEL_NAME = "all-MiniLM-L6-v2"
+    MODEL_NAME = "paraphrase-MiniLM-L3-v2"
     CACHE_FILE = "embedding_cache.json"
     
     def __init__(self, model_name: str = MODEL_NAME):
