@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG Drive Assistant</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f5f8;
+      --sidebar: #141a23;
+      --sidebar-border: #232c39;
+      --sidebar-text: #edf2f8;
+      --sidebar-muted: #95a3b8;
+      --chat-bg: #ffffff;
+      --chat-border: #d9e0ea;
+      --text: #17202d;
+      --muted: #6b7788;
+      --accent: #2c6bed;
+      --accent-strong: #1f57cb;
+      --success: #21a366;
+      --danger: #d64545;
+      --warning-bg: #fce9e9;
+      --tag-bg: #eef4ff;
+      --tag-text: #244ea3;
+      --shadow: 0 12px 36px rgba(20, 26, 35, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--sidebar);
+      color: var(--sidebar-text);
+      border-right: 1px solid var(--sidebar-border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--sidebar-border);
+    }
+
+    .app-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .status-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--sidebar-muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #64748b;
+      box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.18);
+      flex: 0 0 auto;
+    }
+
+    .status-dot.ok {
+      background: var(--success);
+      box-shadow: 0 0 0 3px rgba(33, 163, 102, 0.18);
+    }
+
+    .status-dot.error {
+      background: var(--danger);
+      box-shadow: 0 0 0 3px rgba(214, 69, 69, 0.18);
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--sidebar-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .sync-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    .primary-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      padding: 11px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.18s ease, opacity 0.18s ease;
+    }
+
+    .primary-btn:hover {
+      background: var(--accent-strong);
+    }
+
+    .primary-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      display: none;
+    }
+
+    .spinner.visible {
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .sync-result {
+      border: 1px solid var(--sidebar-border);
+      border-radius: 8px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      display: grid;
+      gap: 8px;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--sidebar-text);
+      font-size: 14px;
+    }
+
+    .metric span:last-child {
+      color: var(--sidebar-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 13px;
+      color: var(--sidebar-muted);
+    }
+
+    .field input {
+      width: 100%;
+      border: 1px solid #2b3443;
+      background: #1a2230;
+      color: var(--sidebar-text);
+      border-radius: 8px;
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    .field input:focus {
+      border-color: #4d7de6;
+      box-shadow: 0 0 0 3px rgba(77, 125, 230, 0.16);
+    }
+
+    .workspace {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
+    }
+
+    .error-banner {
+      display: none;
+      margin: 18px 20px 0;
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: var(--warning-bg);
+      color: #8f1f1f;
+      border: 1px solid #efb4b4;
+      font-size: 14px;
+    }
+
+    .error-banner.visible {
+      display: block;
+    }
+
+    .chat-shell {
+      flex: 1;
+      min-height: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .chat-card {
+      flex: 1;
+      min-height: 0;
+      background: var(--chat-bg);
+      border: 1px solid var(--chat-border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--chat-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .chat-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .chat-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .messages {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      background:
+        radial-gradient(circle at top right, rgba(44, 107, 237, 0.05), transparent 28%),
+        #ffffff;
+    }
+
+    .message {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 80%;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    .bubble {
+      border-radius: 8px;
+      padding: 14px 16px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 14px;
+    }
+
+    .message.user .bubble {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .message.assistant .bubble {
+      background: #f4f7fb;
+      color: var(--text);
+      border: 1px solid #e1e8f0;
+    }
+
+    .sources {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .source-tag {
+      border: 0;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .composer {
+      border-top: 1px solid var(--chat-border);
+      padding: 16px 18px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      background: #fff;
+    }
+
+    .composer textarea {
+      flex: 1;
+      resize: none;
+      min-height: 48px;
+      max-height: 160px;
+      border: 1px solid var(--chat-border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      outline: none;
+      background: #fff;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .composer textarea:focus {
+      border-color: #8fb0f6;
+      box-shadow: 0 0 0 3px rgba(44, 107, 237, 0.12);
+    }
+
+    .send-btn {
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      min-width: 96px;
+      height: 48px;
+      padding: 0 18px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .send-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .empty-state {
+      color: var(--muted);
+      font-size: 14px;
+      margin: auto;
+      text-align: center;
+      max-width: 420px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 960px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--sidebar-border);
+      }
+
+      .message {
+        max-width: 92%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="topbar">
+        <div class="app-title">RAG Drive Assistant</div>
+        <div class="status-wrap">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusText">Checking</span>
+        </div>
+      </div>
+
+      <section class="panel">
+        <div class="panel-title">Drive Sync</div>
+        <div class="sync-row">
+          <button id="syncButton" class="primary-btn" type="button">Sync Drive</button>
+          <span id="syncSpinner" class="spinner" aria-hidden="true"></span>
+        </div>
+        <div class="sync-result">
+          <div class="metric"><span>Synced</span><span id="syncedCount">0</span></div>
+          <div class="metric"><span>Skipped</span><span id="skippedCount">0</span></div>
+          <div class="metric"><span>Failed</span><span id="failedCount">0</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">Filters</div>
+        <div class="field">
+          <label for="fileNameInput">file_name</label>
+          <input id="fileNameInput" type="text" placeholder="Filter by file name">
+        </div>
+        <div class="field">
+          <label for="sourceInput">source</label>
+          <input id="sourceInput" type="text" placeholder="Filter by source">
+        </div>
+        <div class="field">
+          <label for="topKInput">top_k</label>
+          <input id="topKInput" type="number" min="1" max="20" value="5">
+        </div>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <div id="errorBanner" class="error-banner"></div>
+
+      <div class="chat-shell">
+        <div class="chat-card">
+          <div class="chat-header">
+            <div>
+              <div class="chat-title">Document Q&amp;A</div>
+              <div class="chat-subtitle">Ask questions against your indexed Drive content.</div>
+            </div>
+          </div>
+
+          <div id="messages" class="messages">
+            <div class="empty-state" id="emptyState">
+              Ask a question to search your indexed documents. Filters on the left can narrow the answer to a specific file or source.
+            </div>
+          </div>
+
+          <div class="composer">
+            <textarea id="questionInput" placeholder="Ask a question about your documents..."></textarea>
+            <button id="sendButton" class="send-btn" type="button">Send</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = window.location.protocol === "file:" ? "http://localhost:8000" : window.location.origin;
+
+    const statusDot = document.getElementById("statusDot");
+    const statusText = document.getElementById("statusText");
+    const syncButton = document.getElementById("syncButton");
+    const syncSpinner = document.getElementById("syncSpinner");
+    const syncedCount = document.getElementById("syncedCount");
+    const skippedCount = document.getElementById("skippedCount");
+    const failedCount = document.getElementById("failedCount");
+    const errorBanner = document.getElementById("errorBanner");
+    const fileNameInput = document.getElementById("fileNameInput");
+    const sourceInput = document.getElementById("sourceInput");
+    const topKInput = document.getElementById("topKInput");
+    const questionInput = document.getElementById("questionInput");
+    const sendButton = document.getElementById("sendButton");
+    const messages = document.getElementById("messages");
+    const emptyState = document.getElementById("emptyState");
+
+    function showError(message) {
+      errorBanner.textContent = message;
+      errorBanner.classList.add("visible");
+    }
+
+    function clearError() {
+      errorBanner.textContent = "";
+      errorBanner.classList.remove("visible");
+    }
+
+    function setHealthStatus(ok, label) {
+      statusDot.classList.remove("ok", "error");
+      statusDot.classList.add(ok ? "ok" : "error");
+      statusText.textContent = label;
+    }
+
+    async function callApi(path, options = {}) {
+      const response = await fetch(`${API_BASE}${path}`, {
+        headers: {
+          "Content-Type": "application/json"
+        },
+        ...options
+      });
+
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = null;
+      }
+
+      if (!response.ok || !payload || payload.success === false) {
+        const message = payload && payload.message ? payload.message : `Request failed with status ${response.status}`;
+        throw new Error(message);
+      }
+
+      return payload;
+    }
+
+    async function loadHealth() {
+      try {
+        clearError();
+        const health = await callApi("/health", { method: "GET" });
+        const status = health.data && health.data.status ? health.data.status : "healthy";
+        setHealthStatus(status === "healthy", status === "healthy" ? "Online" : "Offline");
+      } catch (error) {
+        setHealthStatus(false, "Offline");
+        showError(error.message);
+      }
+    }
+
+    function setSyncLoading(isLoading) {
+      syncButton.disabled = isLoading;
+      syncSpinner.classList.toggle("visible", isLoading);
+    }
+
+    async function syncDrive() {
+      setSyncLoading(true);
+      clearError();
+      try {
+        const payload = await callApi("/api/sync-drive", {
+          method: "POST",
+          body: JSON.stringify({ max_results: 100 })
+        });
+
+        const data = payload.data || {};
+        const synced = (data.new_files || 0) + (data.modified_files || 0);
+        syncedCount.textContent = String(synced);
+        skippedCount.textContent = String(data.skipped_files || 0);
+        failedCount.textContent = String(data.failed_files || 0);
+        await loadHealth();
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        setSyncLoading(false);
+      }
+    }
+
+    function createMessage(role, text, sources = []) {
+      if (emptyState) {
+        emptyState.remove();
+      }
+
+      const message = document.createElement("div");
+      message.className = `message ${role}`;
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+      message.appendChild(bubble);
+
+      if (role === "assistant" && sources.length) {
+        const sourceWrap = document.createElement("div");
+        sourceWrap.className = "sources";
+
+        sources.forEach((source) => {
+          const tag = document.createElement("button");
+          tag.type = "button";
+          tag.className = "source-tag";
+          tag.textContent = source;
+          tag.addEventListener("click", () => {
+            fileNameInput.value = source;
+            fileNameInput.focus();
+          });
+          sourceWrap.appendChild(tag);
+        });
+
+        message.appendChild(sourceWrap);
+      }
+
+      messages.appendChild(message);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function buildAskPayload() {
+      const payload = {
+        query: questionInput.value.trim(),
+        top_k: Math.min(20, Math.max(1, Number(topKInput.value) || 5))
+      };
+
+      const fileName = fileNameInput.value.trim();
+      const source = sourceInput.value.trim();
+
+      if (fileName) {
+        payload.file_name = fileName;
+      }
+      if (source) {
+        payload.source = source;
+      }
+
+      return payload;
+    }
+
+    async function sendQuestion() {
+      const payload = buildAskPayload();
+      if (!payload.query) {
+        showError("Please enter a question before sending.");
+        return;
+      }
+
+      clearError();
+      createMessage("user", payload.query);
+      questionInput.value = "";
+      sendButton.disabled = true;
+
+      try {
+        const response = await callApi("/api/ask", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+
+        const data = response.data || {};
+        createMessage("assistant", data.answer || "No answer returned.", data.sources || []);
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        sendButton.disabled = false;
+        questionInput.focus();
+      }
+    }
+
+    questionInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendQuestion();
+      }
+    });
+
+    syncButton.addEventListener("click", syncDrive);
+    sendButton.addEventListener("click", sendQuestion);
+
+    loadHealth();
+  </script>
+</body>
+</html>
