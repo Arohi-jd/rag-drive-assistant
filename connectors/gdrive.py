@@ -71,6 +71,16 @@ class GoogleDriveConnector:
             from google_auth_oauthlib.flow import InstalledAppFlow
             from googleapiclient.discovery import build
 
+            credentials_env = os.getenv("GOOGLE_CREDENTIALS_JSON")
+            if credentials_env:
+                try:
+                    credentials_payload = json.loads(credentials_env)
+                except json.JSONDecodeError as e:
+                    raise ValueError("GOOGLE_CREDENTIALS_JSON is not valid JSON") from e
+
+                async with aiofiles.open(self.CREDENTIALS_FILE, "w", encoding="utf-8") as file_handle:
+                    await file_handle.write(json.dumps(credentials_payload, indent=2))
+
             token_exists = await asyncio.to_thread(os.path.exists, self.TOKEN_FILE)
             if token_exists:
                 print(f"📂 Loading token from {self.TOKEN_FILE}")
