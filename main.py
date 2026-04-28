@@ -98,9 +98,7 @@ if __name__ == "__main__":
     import uvicorn
     
     try:
-        port = int(os.getenv("PORT", 8000))
-        host = os.getenv("HOST", "0.0.0.0")
-        print(f"🌍 Starting server on {host}:{port}")
-        uvicorn.run(app, host=host, port=port)
+        print("🌍 Starting server on 0.0.0.0")
+        uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
     except Exception as e:
         print(f"❌ Failed to start server: {str(e)}")
