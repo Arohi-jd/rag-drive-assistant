@@ -81,6 +81,16 @@ class GoogleDriveConnector:
                 async with aiofiles.open(self.CREDENTIALS_FILE, "w", encoding="utf-8") as file_handle:
                     await file_handle.write(json.dumps(credentials_payload, indent=2))
 
+            token_env = os.getenv("GOOGLE_TOKEN_JSON")
+            if token_env:
+                try:
+                    token_payload = json.loads(token_env)
+                except json.JSONDecodeError as e:
+                    raise ValueError("GOOGLE_TOKEN_JSON is not valid JSON") from e
+
+                async with aiofiles.open(self.TOKEN_FILE, "w", encoding="utf-8") as file_handle:
+                    await file_handle.write(json.dumps(token_payload, indent=2))
+
             token_exists = await asyncio.to_thread(os.path.exists, self.TOKEN_FILE)
             if token_exists:
                 print(f"📂 Loading token from {self.TOKEN_FILE}")
