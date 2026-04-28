@@ -3,7 +3,6 @@ uvicorn[standard]
 pydantic>=2.11.0,<3
 python-dotenv
 aiofiles
-faiss-cpu
 pymupdf>=1.26.0,<1.27
 python-docx
 google-auth-oauthlib
