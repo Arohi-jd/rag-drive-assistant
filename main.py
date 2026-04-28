@@ -93,11 +93,7 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import uvicorn
-    
-    try:
-        print("🌍 Starting server on 0.0.0.0")
-        uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
-    except Exception as e:
-        print(f"❌ Failed to start server: {str(e)}")
+    port = int(os.environ.get('PORT', 8000))
+    uvicorn.run(app, host='0.0.0.0', port=port)
