@@ -13,12 +13,6 @@ from functools import partial
 from typing import Dict, List, Optional
 
 import aiofiles
-from google.auth.exceptions import GoogleAuthError
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
 
 
 class GoogleDriveConnector:
@@ -71,6 +65,12 @@ class GoogleDriveConnector:
     async def _authenticate(self) -> None:
         """Authenticate with Google Drive using OAuth2."""
         try:
+            from google.auth.exceptions import GoogleAuthError
+            from google.auth.transport.requests import Request
+            from google.oauth2.credentials import Credentials
+            from google_auth_oauthlib.flow import InstalledAppFlow
+            from googleapiclient.discovery import build
+
             token_exists = await asyncio.to_thread(os.path.exists, self.TOKEN_FILE)
             if token_exists:
                 print(f"📂 Loading token from {self.TOKEN_FILE}")
@@ -218,6 +218,8 @@ class GoogleDriveConnector:
 
     def _download_request_bytes(self, request) -> bytes:
         """Download a Google API media request into memory."""
+        from googleapiclient.http import MediaIoBaseDownload
+
         buffer = io.BytesIO()
         downloader = MediaIoBaseDownload(buffer, request)
         done = False

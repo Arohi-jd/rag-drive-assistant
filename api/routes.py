@@ -5,7 +5,7 @@ Handles document ingestion, search, and augmentation.
 
 import asyncio
 import os
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type, TYPE_CHECKING
 from fastapi import APIRouter, BackgroundTasks, Body, status
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field, ValidationError
@@ -15,10 +15,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Import modules
-from connectors.gdrive import GoogleDriveConnector
-from processing.chunker import DocumentChunker
-from search.faiss_store import FAISSStore
+if TYPE_CHECKING:
+    from search.faiss_store import FAISSStore
 
 # Initialize router
 router = APIRouter()
@@ -28,9 +26,8 @@ SAMPLE_IO_FILE = os.path.abspath(
 )
 
 # Initialize components
-chunker = DocumentChunker()
+chunker = None
 faiss_store = None
-embedder = None
 
 # Load Groq API key
 groq_api_key = os.getenv("GROQ_API_KEY")
@@ -38,13 +35,24 @@ groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
 
 
-def get_faiss_store() -> FAISSStore:
+def get_faiss_store() -> "FAISSStore":
     """Lazily initialize and return the FAISS store."""
-    global faiss_store, embedder
+    global faiss_store
     if faiss_store is None:
+        from search.faiss_store import FAISSStore
+
         faiss_store = FAISSStore()
-        embedder = faiss_store.embedder
     return faiss_store
+
+
+def get_chunker():
+    """Lazily initialize and return the document chunker."""
+    global chunker
+    if chunker is None:
+        from processing.chunker import DocumentChunker
+
+        chunker = DocumentChunker()
+    return chunker
 
 
 class SearchQuery(BaseModel):
@@ -268,7 +276,7 @@ async def ingest_document(payload: Optional[Dict[str, Any]] = Body(default=None)
         print(f"📖 Ingesting document: {request.file_path}")
         
         # Process document
-        chunks = await asyncio.to_thread(chunker.process_file, request.file_path)
+        chunks = await asyncio.to_thread(get_chunker().process_file, request.file_path)
         
         # Extract text and metadata
         texts = [chunk['text'] for chunk in chunks]
@@ -319,6 +327,8 @@ async def download_from_drive(
     try:
         request = validate_request(payload, DownloadFromDriveRequest)
         try:
+            from connectors.gdrive import GoogleDriveConnector
+
             gdrive = await GoogleDriveConnector.create()
         except Exception as e:
             print(f"⚠️  Google Drive not configured: {str(e)}")
@@ -383,6 +393,8 @@ async def sync_drive(payload: Optional[Dict[str, Any]] = Body(default=None)) -> 
     try:
         request = validate_request(payload, SyncDriveRequest)
         try:
+            from connectors.gdrive import GoogleDriveConnector
+
             gdrive = await GoogleDriveConnector.create()
         except Exception as e:
             print(f"⚠️  Google Drive not configured: {str(e)}")
@@ -398,7 +410,7 @@ async def sync_drive(payload: Optional[Dict[str, Any]] = Body(default=None)) -> 
         async def process_synced_file(file_info: Dict[str, Any]) -> Dict[str, Any]:
             try:
                 file_path = file_info["file_path"]
-                chunks = await asyncio.to_thread(chunker.process_file, file_path)
+                chunks = await asyncio.to_thread(get_chunker().process_file, file_path)
                 texts = [chunk["text"] for chunk in chunks]
                 metadata = [dict(chunk) for chunk in chunks]
                 doc_id = metadata[0]["doc_id"] if metadata else None
@@ -699,7 +711,7 @@ async def _ingest_file_task(file_path: str) -> None:
     """Background task to ingest a file."""
     try:
         print(f"🔄 Ingesting file in background: {file_path}")
-        chunks = await asyncio.to_thread(chunker.process_file, file_path)
+        chunks = await asyncio.to_thread(get_chunker().process_file, file_path)
         texts = [chunk['text'] for chunk in chunks]
         metadata = [dict(chunk) for chunk in chunks]
         store = get_faiss_store()

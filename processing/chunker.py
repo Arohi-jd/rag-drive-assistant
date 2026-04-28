@@ -6,12 +6,7 @@ import os
 import re
 import hashlib
 from typing import List, Dict
-import fitz
-from docx import Document
 from dotenv import load_dotenv
-
-
-load_dotenv()
 
 
 class DocumentChunker:
@@ -26,6 +21,7 @@ class DocumentChunker:
             overlap: Overlap between chunks in characters
         """
         try:
+            load_dotenv()
             self.chunk_size = chunk_size or int(os.getenv("CHUNK_SIZE", "1000"))
             self.overlap = overlap or int(os.getenv("CHUNK_OVERLAP", "100"))
             if self.chunk_size <= 0:
@@ -46,6 +42,8 @@ class DocumentChunker:
     def read_pdf(self, file_path: str) -> str:
         """Extract text from a PDF file."""
         try:
+            import fitz
+
             text = ""
             pdf_document = fitz.open(file_path)
             
@@ -64,6 +62,8 @@ class DocumentChunker:
     def read_docx(self, file_path: str) -> str:
         """Extract text from a Word document."""
         try:
+            from docx import Document
+
             doc = Document(file_path)
             text = ""
             
