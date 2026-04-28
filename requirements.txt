@@ -4,10 +4,6 @@ pydantic>=2.11.0,<3
 python-dotenv
 aiofiles
 faiss-cpu
-sentence-transformers==3.3.1
-huggingface-hub==0.27.0
-transformers==4.47.0
-tokenizers==0.21.0
 pymupdf>=1.26.0,<1.27
 python-docx
 google-auth-oauthlib
@@ -16,3 +12,5 @@ google-api-python-client
 groq
 python-multipart
 cors
+requests
+numpy

@@ -1,0 +1,105 @@
+{
+  "generated_at": "2026-04-28",
+  "endpoints": {
+    "/api/ask": {
+      "sample_input": {
+        "query": "What does the handbook say about remote work?",
+        "file_name": "employee-handbook.pdf",
+        "source": "./data/employee-handbook.pdf",
+        "top_k": 5
+      },
+      "sample_output": {
+        "success": true,
+        "message": "Answer generated successfully",
+        "data": {
+          "query": "What does the handbook say about remote work?",
+          "filters": {
+            "file_name": "employee-handbook.pdf",
+            "source": "./data/employee-handbook.pdf",
+            "top_k": 5
+          },
+          "matched_chunks": 3,
+          "context": [
+            "Remote work is allowed with manager approval...",
+            "Employees must maintain core collaboration hours..."
+          ],
+          "answer": "According to employee-handbook.pdf, remote work is allowed with manager approval and employees are expected to maintain core collaboration hours.",
+          "sources": [
+            "employee-handbook.pdf"
+          ]
+        }
+      }
+    },
+    "/api/search": {
+      "sample_input": {
+        "query": "What does the onboarding checklist require?",
+        "top_k": 5
+      },
+      "sample_output": {
+        "success": true,
+        "message": "Search completed successfully",
+        "data": {
+          "query": "What does the onboarding checklist require?",
+          "results": [
+            {
+              "text": "New hires must complete security training within 7 days...",
+              "similarity": 0.81,
+              "metadata": {
+                "doc_id": "7ca1f08e7c9796c2",
+                "file_name": "onboarding.txt",
+                "chunk_index": 0,
+                "total_chunks": 4,
+                "source": "./data/onboarding.txt",
+                "char_count": 912,
+                "text": "New hires must complete security training within 7 days..."
+              }
+            }
+          ],
+          "total_results": 1
+        }
+      }
+    },
+    "/api/ingest": {
+      "sample_input": {
+        "file_path": "./data/employee-handbook.pdf"
+      },
+      "sample_output": {
+        "success": true,
+        "message": "Successfully ingested 11 chunks",
+        "data": {
+          "file_path": "./data/employee-handbook.pdf",
+          "chunks_created": 11,
+          "index_overview": {
+            "documents_indexed": 3,
+            "chunks_indexed": 29
+          }
+        }
+      }
+    },
+    "/api/sync-drive": {
+      "sample_input": {
+        "max_results": 100
+      },
+      "sample_output": {
+        "success": true,
+        "message": "Google Drive sync completed",
+        "data": {
+          "new_files": 2,
+          "modified_files": 1,
+          "skipped_files": 7,
+          "failed_files": 0,
+          "synced_files": [
+            {
+              "file_id": "1AbCdEf",
+              "file_name": "team-notes.txt",
+              "file_path": "./data/team-notes.txt",
+              "modified_time": "2026-04-27T10:15:00.000Z",
+              "status": "new"
+            }
+          ],
+          "failed_details": []
+        }
+      }
+    }
+  }
+}

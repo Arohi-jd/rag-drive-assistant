@@ -7,7 +7,7 @@ import asyncio
 import os
 from typing import Any, Dict, List, Optional, Type
 from fastapi import APIRouter, BackgroundTasks, Body, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field, ValidationError
 from groq import Groq
 from dotenv import load_dotenv
@@ -22,6 +22,10 @@ from search.faiss_store import FAISSStore
 
 # Initialize router
 router = APIRouter()
+
+SAMPLE_IO_FILE = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), "sample_io.json")
+)
 
 # Initialize components
 chunker = DocumentChunker()
@@ -654,6 +658,22 @@ async def health_check() -> JSONResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             data={"error": str(e)}
         )
+
+
+@router.get("/sample-io", status_code=status.HTTP_200_OK)
+async def download_sample_io() -> FileResponse:
+    """Download sample input/output payloads."""
+    if not os.path.exists(SAMPLE_IO_FILE):
+        return error_response(
+            message="Sample IO file not found",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+
+    return FileResponse(
+        SAMPLE_IO_FILE,
+        media_type="application/json",
+        filename="sample_io.json"
+    )
 
 
 async def _ingest_file_task(file_path: str) -> None:

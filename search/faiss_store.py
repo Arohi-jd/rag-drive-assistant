@@ -36,7 +36,7 @@ class FAISSStore:
             self.index = None
             self.metadata = []
             self.embedder = Embedder()
-            self.embedding_dim = self.embedder.get_embedding_dimension()
+            self.embedding_dim = 384
             self._lock = asyncio.Lock()
             print(f"✅ FAISSStore initialized with embedding dimension: {self.embedding_dim}")
         except Exception as e:
