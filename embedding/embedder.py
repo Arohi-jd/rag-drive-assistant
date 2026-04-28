@@ -16,7 +16,7 @@ load_dotenv()
 class Embedder:
     """Generate embeddings for text using the Hugging Face Inference API."""
 
-    ENDPOINT = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+    ENDPOINT = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
 
     def __init__(self):
         self.api_key = os.getenv("HUGGINGFACE_API_KEY")
