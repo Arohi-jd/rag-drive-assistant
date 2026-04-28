@@ -29,12 +29,22 @@ SAMPLE_IO_FILE = os.path.abspath(
 
 # Initialize components
 chunker = DocumentChunker()
-faiss_store = FAISSStore()
+faiss_store = None
+embedder = None
 
 # Load Groq API key
 groq_api_key = os.getenv("GROQ_API_KEY")
 groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
+
+
+def get_faiss_store() -> FAISSStore:
+    """Lazily initialize and return the FAISS store."""
+    global faiss_store, embedder
+    if faiss_store is None:
+        faiss_store = FAISSStore()
+        embedder = faiss_store.embedder
+    return faiss_store
 
 
 class SearchQuery(BaseModel):
@@ -96,7 +106,8 @@ def validate_request(payload: Optional[Dict[str, Any]], model_class: Type[BaseMo
 
 def get_index_overview() -> Dict[str, Any]:
     """Return document and chunk counts from the in-memory FAISS metadata."""
-    metadata = faiss_store.metadata or []
+    store = get_faiss_store()
+    metadata = store.metadata or []
     doc_ids = {
         item.get('doc_id') or item.get('file_name') or item.get('source')
         for item in metadata
@@ -112,7 +123,8 @@ def get_index_overview() -> Dict[str, Any]:
 def filter_metadata_chunks(file_name: Optional[str] = None, source: Optional[str] = None) -> List[Dict[str, Any]]:
     """Filter indexed chunks by optional metadata fields."""
     filtered_chunks = []
-    for item in faiss_store.metadata or []:
+    store = get_faiss_store()
+    for item in store.metadata or []:
         item_file_name = item.get("file_name")
         item_source = item.get("source")
 
@@ -130,14 +142,15 @@ def search_filtered_chunks(query: str, filtered_chunks: List[Dict[str, Any]], to
     if not filtered_chunks:
         return []
 
-    query_embedding = faiss_store.embedder.embed_text(query)
+    store = get_faiss_store()
+    query_embedding = store.embedder.embed_text(query)
     scored_results = []
     for chunk in filtered_chunks:
         chunk_text = chunk.get("text", "")
         if not chunk_text:
             continue
-        chunk_embedding = faiss_store.embedder.embed_text(chunk_text)
-        similarity = faiss_store.embedder.similarity_score(query_embedding, chunk_embedding)
+        chunk_embedding = store.embedder.embed_text(chunk_text)
+        similarity = store.embedder.similarity_score(query_embedding, chunk_embedding)
         scored_results.append({
             "text": chunk_text,
             "similarity": similarity,
@@ -207,7 +220,8 @@ async def search_documents(payload: Optional[Dict[str, Any]] = Body(default=None
     try:
         request = validate_request(payload, SearchQuery)
         print(f"🔍 Searching for: {request.query}")
-        results = await faiss_store.search_with_scores(request.query, k=request.top_k)
+        store = get_faiss_store()
+        results = await store.search_with_scores(request.query, k=request.top_k)
 
         return success_response(
             message="Search completed successfully",
@@ -261,7 +275,8 @@ async def ingest_document(payload: Optional[Dict[str, Any]] = Body(default=None)
         metadata = [dict(chunk) for chunk in chunks]
         
         # Add to FAISS
-        await faiss_store.add_documents(texts, metadata)
+        store = get_faiss_store()
+        await store.add_documents(texts, metadata)
 
         return success_response(
             message=f"Successfully ingested {len(chunks)} chunks",
@@ -388,7 +403,8 @@ async def sync_drive(payload: Optional[Dict[str, Any]] = Body(default=None)) -> 
                 metadata = [dict(chunk) for chunk in chunks]
                 doc_id = metadata[0]["doc_id"] if metadata else None
                 if doc_id:
-                    await faiss_store.replace_document(doc_id, texts, metadata)
+                    store = get_faiss_store()
+                    await store.replace_document(doc_id, texts, metadata)
                 return {"status": "success", "file": file_info}
             except Exception as e:
                 return {
@@ -464,7 +480,8 @@ async def augment_with_context(payload: Optional[Dict[str, Any]] = Body(default=
         print(f"🤖 Augmenting response for: {request.query}")
         
         # Search for context
-        results = await faiss_store.search_with_scores(request.query, k=5)
+        store = get_faiss_store()
+        results = await store.search_with_scores(request.query, k=5)
         context_payload = build_context_blocks(results)
 
         # Prepare prompt
@@ -606,7 +623,8 @@ async def ask_with_filters(payload: Optional[Dict[str, Any]] = Body(default=None
 async def get_index_stats() -> JSONResponse:
     """Get FAISS index statistics."""
     try:
-        stats = await faiss_store.get_statistics()
+        store = get_faiss_store()
+        stats = await store.get_statistics()
         return success_response(
             message="Index statistics retrieved successfully",
             data=stats
@@ -624,7 +642,8 @@ async def get_index_stats() -> JSONResponse:
 async def clear_faiss_index() -> JSONResponse:
     """Clear the FAISS index."""
     try:
-        await faiss_store.clear_index()
+        store = get_faiss_store()
+        await store.clear_index()
         return success_response(
             message="FAISS index cleared successfully",
             data=get_index_overview()
@@ -683,7 +702,8 @@ async def _ingest_file_task(file_path: str) -> None:
         chunks = await asyncio.to_thread(chunker.process_file, file_path)
         texts = [chunk['text'] for chunk in chunks]
         metadata = [dict(chunk) for chunk in chunks]
-        await faiss_store.add_documents(texts, metadata)
+        store = get_faiss_store()
+        await store.add_documents(texts, metadata)
         print(f"✅ Background ingestion completed for {file_path}")
     except Exception as e:
         print(f"❌ Error in background ingestion task: {str(e)}")

@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import routes
-from api.routes import router, faiss_store, get_index_overview
+from api.routes import router
 
 
 @asynccontextmanager
@@ -21,21 +21,16 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     try:
         print("🚀 Starting RAG Drive Assistant...")
-        # Initialize FAISS index on startup if needed
-        await faiss_store.load_index()
-        print("✅ FAISS index loaded successfully")
-
         host = os.getenv("HOST", "0.0.0.0")
         port = int(os.getenv("PORT", 8000))
         display_host = "localhost" if host in {"0.0.0.0", "::"} else host
         server_url = f"http://{display_host}:{port}"
         docs_url = f"{server_url}/docs"
-        indexed_documents = get_index_overview()["documents_indexed"]
 
         print("✨ Welcome to RAG Drive Assistant")
         print(f"🌍 Server URL: {server_url}")
         print(f"📘 Docs URL: {docs_url}")
-        print(f"📚 Documents indexed: {indexed_documents}")
+        print("📚 Documents indexed: 0 (lazy load enabled)")
     except Exception as e:
         print(f"❌ Error during startup: {str(e)}")
     
